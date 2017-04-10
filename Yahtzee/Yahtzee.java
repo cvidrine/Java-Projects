@@ -1,8 +1,5 @@
 /*
  * File: Yahtzee.java
- * ------------------
- * This program will eventually play the Yahtzee game. 
- * Both Charles Vidrine and Roberto Arguello collaborated on this assignment.
  */
  
 import java.util.ArrayList;
