@@ -1,0 +1,422 @@
+/*
+ * File: Breakout.java
+ * -------------------
+ * Name: Charles Vidrine
+ * Section Leader: Evan Giarta
+ * 
+ * This file implements the game of Breakout.
+ */
+ 
+import acm.graphics.*;
+import acm.program.*;
+import acm.util.*;
+ 
+import java.applet.*;
+import java.awt.*;
+import java.awt.event.*;
+ 
+ 
+public class BreakoutExtension extends GraphicsProgram {
+ 
+    /** Width and height of application window in pixels.  On some platforms 
+     * these may NOT actually be the dimensions of the graphics canvas. */
+    public static final int APPLICATION_WIDTH = 400;
+    public static final int APPLICATION_HEIGHT = 600;
+ 
+    /** Dimensions of game board.  On some platforms these may NOT actually
+     * be the dimensions of the graphics canvas. */
+    private static final int WIDTH = APPLICATION_WIDTH;
+    private static final int HEIGHT = APPLICATION_HEIGHT;
+ 
+    /** Dimensions of the paddle */
+    private static final int PADDLE_WIDTH = 60;
+    private static final int PADDLE_HEIGHT = 10;
+ 
+    /** Offset of the paddle up from the bottom */
+    private static final int PADDLE_Y_OFFSET = 30;
+ 
+    /** Number of bricks per row */
+    private static final int NBRICKS_PER_ROW = 10;
+ 
+    /** Number of rows of bricks */
+    private static final int NBRICK_ROWS = 10;
+ 
+    /** Separation between bricks */
+    private static final int BRICK_SEP = 4;
+ 
+    /** Width of a brick */
+    private static final int BRICK_WIDTH =
+            (WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / NBRICKS_PER_ROW;
+ 
+    /** Height of a brick */
+    private static final int BRICK_HEIGHT = 8;
+ 
+    /** Radius of the ball in pixels */
+    private static final int BALL_RADIUS = 10;
+ 
+    /** Offset of the top brick row from the top */
+    private static final int BRICK_Y_OFFSET = 70;
+ 
+    /** Number of turns */
+    private static final int NTURNS = 3;
+ 
+    /** milliseconds between ball movements */
+    private static final int DELAY =18;
+ 
+    /** players score at the start of a game */
+    private static final int STARTING_SCORE = 10000;
+ 
+    /** where the paddle starts at */  
+    private static final double paddleX = (WIDTH-PADDLE_WIDTH)/2;
+ 
+    /** paddle's fixed y height */ 
+    private static final double paddleY = HEIGHT-PADDLE_Y_OFFSET-PADDLE_HEIGHT;
+ 
+    /** Score label's x and y coordinates */
+    private static final double SCORE_X = WIDTH-100;
+    private static final double SCORE_Y = 20;
+ 
+    /** vx and vy are how many pixels the x and y values change every time the ball "moves" */
+    private double vx, vy;
+ 
+    /** number of bricks remaining in the playing field */
+    private int NUM_BRICKS = NBRICKS_PER_ROW*NBRICK_ROWS;
+ 
+    /** The ball, paddle, and Label for the score in the game window */
+    private GOval ball;
+    private GRect paddle;
+    private GLabel scoreLabel;
+ 
+    /** Random Generator used to determine the initial vx. */
+    private RandomGenerator rgen = RandomGenerator.getInstance();
+ 
+    /** the numbers of turns remaining. */
+    private int turns =NTURNS;
+ 
+    /** How many times the ball has hit the paddle in the current life. Ball speed increases every 7 increases of the kicker */
+    private int kicker=0;
+ 
+    /**Delay between ball movements. Changes depending on how many times the paddle has been hit in the current life (value of kicker) */
+    private double shiftingDelay = DELAY;
+ 
+    /** Players current Score */
+    private int score = STARTING_SCORE;
+ 
+    AudioClip boing = MediaTools.loadAudioClip("Boing.wav");
+    AudioClip levelUp = MediaTools.loadAudioClip("levelUp.wav");
+    AudioClip wallBounce = MediaTools.loadAudioClip("wallBounce.wav");
+    AudioClip winnerSong = MediaTools.loadAudioClip("winnerSong.wav");
+    AudioClip loserSound = MediaTools.loadAudioClip("loserSound.wav");
+    AudioClip ballLost = MediaTools.loadAudioClip("dunDunDun.wav");
+    /* Method: run() */
+    /** Runs the Breakout program. */
+    public void run() {
+        addMouseListeners();
+        buildBreakout();
+        playBreakout();
+        playAgain();
+    }
+    /* builds all the objects(paddle and bricks) in the game, and implements the code to move the paddle.*/
+    private void buildBreakout(){
+        buildBricks();
+        buildPaddle();
+        addScore();
+    }
+    /* Creates the x-coordinate for the first brick in each row, then calls createRow for each row of bricks. */
+    private void buildBricks(){
+        double x = (WIDTH%(NBRICKS_PER_ROW*BRICK_WIDTH+((NBRICKS_PER_ROW-1)*BRICK_SEP)))/2.0;
+        for (int i =0; i<NBRICK_ROWS; i++){
+            createRow(x, i);
+        }
+    }
+    /*
+     * createRow creates all the bricks in the given row. parameter x is the x-value of the first brick, and parameter row is what row the program is currently building(with the 
+     * first row being row 0). To create the x-coordinate, createRow adds to x the width of a brick to the space in between each brick, then mulitiplies by how many bricks have
+     * already been placed. For the y-coordinate, createRow adds the combination of the height of a brick and the space between the bricks multiplied by the row 
+     * to the initial offset for y-values. (Offset + row*(combined values of brick height and brick spacing).
+     */
+    private void createRow(double x, int row){
+        for(int i=0; i<NBRICKS_PER_ROW; i++){
+            GRect brick = new GRect(x+i*(BRICK_WIDTH+BRICK_SEP), BRICK_Y_OFFSET+row*(BRICK_HEIGHT+BRICK_SEP), BRICK_WIDTH, BRICK_HEIGHT);
+            addColor(brick, row);
+            add(brick);
+        }
+    }
+ 
+    /*  Fills and colors the bricks depending on what row they're on, then returns the brick */
+    private GRect addColor(GRect brick, int row){
+        brick.setFilled(true);
+        int rowsPerColor = NBRICK_ROWS/5;
+        if (row<rowsPerColor){
+            brick.setColor(Color.RED);
+            return brick;
+        } else if(row<2*(rowsPerColor)){
+            brick.setColor(Color.ORANGE);
+            return brick;
+        } else if(row<3*(rowsPerColor)){
+            brick.setColor(Color.YELLOW);
+            return brick;
+        } else if(row<4*(rowsPerColor)){
+            brick.setColor(Color.GREEN);
+            return brick;
+        } else{
+            brick.setColor(Color.CYAN);
+            return brick;
+        }
+    }
+ 
+    /* builds the paddle and places it in its correct starting location. */
+    private void buildPaddle(){
+        paddle = new GRect(paddleX,paddleY,PADDLE_WIDTH,PADDLE_HEIGHT);
+        paddle.setFilled(true);
+        paddle.setColor(Color.BLACK);
+        add(paddle);
+    }
+    /* Creates the score label */
+    private void addScore(){
+        scoreLabel = new GLabel("Score: "+score, SCORE_X, SCORE_Y);
+        add(scoreLabel);
+    }
+ 
+    /* When the mouse is moved, the paddle slides along the window to match the mouse location. 
+     */
+ 
+    public void mouseMoved(MouseEvent e){
+        if (e.getX()<=WIDTH-PADDLE_WIDTH){
+            paddle.setLocation(e.getX(),paddleY);
+        }
+    }
+    /*
+     * If user is dragging the mouse instead of moving it, the paddle is unaffected.
+     */
+    public void mouseDragged(MouseEvent e){
+        if (e.getX()<=WIDTH-PADDLE_WIDTH){
+            paddle.setLocation(e.getX(),paddleY);
+        }
+    }
+ 
+ 
+    /* Creates the ball and gets it moving, calls checkForCollision to check if the ball is hitting a wall or went off the screen. When there are no
+     * more bricks or no more lives, then the label for winning or losing is created and an animation plays depending on what condition was met. */
+    private void playBreakout(){
+        createBall();
+        while(true){
+            if(NUM_BRICKS != 0 && turns != 0){
+                moveBall();
+                checkForCollision();
+                score-=1;
+                scoreLabel.setLabel("Score: "+score);
+                pause(shiftingDelay);
+            }
+            if(NUM_BRICKS == 0){
+                remove(ball);
+                score+=turns*10000;
+                scoreLabel.setLabel("Set Score: "+score);
+                GLabel winner = new GLabel("WINNER! Final Score: "+score);
+                winner.setFont(new Font("Serif", Font.BOLD, 28));
+                add(winner,(WIDTH-winner.getWidth())/2,(HEIGHT-winner.getHeight())/2);
+                finalAnimations(winner);
+                break;
+            } else if(turns == 0){
+                GLabel loser = new GLabel("You Lost your last ball! Game over.");
+                loser.setFont(new Font("Serif", Font.BOLD, 22));
+                add(loser,(WIDTH-loser.getWidth())/2, (HEIGHT-loser.getHeight())/2);
+                finalAnimations(loser);
+                break;
+            }
+        }
+    }
+ 
+    /* Creates the ball and adds it to the middle of the screen, and defines vy and vx. runs lifeLabels and adds the label to the canvas
+     * then waits for user to Click. When the user clicks, the label disappears.  */
+    private void createBall(){
+        ball = new GOval(WIDTH/2-BALL_RADIUS, HEIGHT/2-BALL_RADIUS, 2*BALL_RADIUS, 2*BALL_RADIUS);
+        ball.setFilled(true);
+        ball.setColor(Color.BLACK);
+        add(ball);
+        vy = 3.0;
+        vx = rgen.nextDouble(1.0, 3.3);
+        if (rgen.nextBoolean(0.5)) vx = -vx;
+        GLabel turnLabels = createTurnLabels();
+        add(turnLabels,(WIDTH-turnLabels.getWidth())/2, (HEIGHT-turnLabels.getHeight())/2-10);
+        waitForClick();
+        remove(turnLabels);
+    }
+    /*returns a label that tells the player how many lives are remaining right above the ball location. */
+    private GLabel createTurnLabels(){
+        GLabel turnLabels = new GLabel("");
+        turnLabels.setFont(new Font("Serif", Font.BOLD, 28));
+        if (turns == NTURNS){
+            turnLabels.setLabel("Click to Start The Game!!");
+            return turnLabels;
+        }else if (turns > 1) {
+            turnLabels.setLabel("You have "+turns+" turns left");
+            return turnLabels;
+        } else {
+            turnLabels.setLabel("You only have "+turns+" turn left!");
+            return turnLabels;
+        }
+    }
+ 
+    /* moves the ball in the direction of vx and vy. */
+    private void moveBall(){
+        ball.move(vx, vy);
+    }
+    /* checks to see if the ball has run into a wall or the bottom of the screen. If it goes off of the bottom of the screen, then the ball is removed,
+     * the player loses a turn, and a new ball is created if the player still has lives left.When a new ball is created, the kicker is reset to zero.
+     *  If not, then it calls collisionDecision to check if it has hit a brick or the paddle. */
+    private void checkForCollision(){
+        if (ball.getX()+BALL_RADIUS*2 >= WIDTH || ball.getX()<= 0){
+            vx = -vx;
+            wallBounce.play();
+        }else if(ball.getY()<= 0){
+            vy=-vy;
+            wallBounce.play();
+        }else if(ball.getY()+BALL_RADIUS*2 >= HEIGHT){
+            remove(ball);
+            turns--;
+            if (turns != 0){
+                kicker =0;
+                shiftingDelay = DELAY;
+                ballLost.play();
+                createBall();
+            }
+        }else{
+            collisionDecision();
+        }
+    }
+    /* Calls getCollidingObject to see if the ball ran into the paddle or a brick. If it hit the paddle, the ball returns up. If it hits a brick, the
+     * ball heads downward and the brick is removed. Uses hitSide method to determine how the motion of the ball changes.
+     */
+    private void collisionDecision(){
+        GObject collider = getCollidingObject();
+        if (collider == null || collider==scoreLabel){
+            return;
+        }else if (collider == paddle){ 
+            vy = -vy;
+            hitSide(collider);
+            kicker++;
+            if(kicker%7  ==0){
+                levelUp.play();
+                shiftingDelay *= .65;
+            } else{
+                boing.play();
+            }
+        } else {
+            hitSide(collider);
+            changeScore(collider);
+            remove(collider);
+            NUM_BRICKS--;
+            wallBounce.play();
+        }
+    }
+ 
+    /* checks the four corners of the ball to see if any of them have collided with an object. If they collide with an object, then the method returns
+     * that object. If not, then it returns null.
+     */
+    private GObject getCollidingObject(){
+        GObject collider;
+        if(getElementAt(ball.getX(), ball.getY()) != null){
+            collider = getElementAt(ball.getX(), ball.getY());
+            return collider;
+        } else if(getElementAt(ball.getX()+2*BALL_RADIUS, ball.getY()) != null){
+            collider = getElementAt(ball.getX()+2*BALL_RADIUS, ball.getY());
+            return collider;
+        } else if(getElementAt(ball.getX(), ball.getY()+2*BALL_RADIUS) != null){
+            collider = getElementAt(ball.getX(), ball.getY()+2*BALL_RADIUS);
+            return collider;
+        }else if(getElementAt(ball.getX()+2*BALL_RADIUS, ball.getY()+2*BALL_RADIUS) != null){
+            collider = getElementAt(ball.getX()+2*BALL_RADIUS, ball.getY()+2*BALL_RADIUS);
+            return collider;
+        }else{
+            return null;
+        }
+    }
+    /*
+     * hitSide checks if the ball hit the side of a brick or paddle. If it hits the side of the paddle, it moves the ball above the paddle and flips vx. If
+     * it hits the side of a brick, it also flips vx. If it doesn't hit the side of either, then it flips vy.
+     */
+    private void hitSide(GObject collider){
+        if(collider==paddle){
+            if(ball.getY()+2*BALL_RADIUS > paddle.getY()+2){
+                vx=-vx;
+            }
+            while(ball.getY()+2*BALL_RADIUS > paddle.getY()){
+                ball.move(vx, vy);
+                if (ball.getX()+BALL_RADIUS*2 >= WIDTH || ball.getX()<= 0){
+                    vx=-vx;
+                    wallBounce.play();
+                }
+            }
+        }else if (vy>0 && ball.getY()+2*BALL_RADIUS > collider.getY()+2 || vy < 0 && ball.getY() < collider.getY()+BRICK_HEIGHT-2){
+            vx=-vx;
+        } else{
+            vy=-vy;
+        }
+    }
+ 
+     
+    /*
+     * Adds points to the score based on which color brick was hit.
+     */
+    private void changeScore(GObject collider){
+        if (collider.getColor()==Color.RED){
+            score+=1000;
+        } else if(collider.getColor()==Color.ORANGE){
+            score+=750;
+        } else if(collider.getColor()==Color.YELLOW){
+            score+=500;
+        } else if(collider.getColor()==Color.GREEN){
+            score+=250;
+        } else if(collider.getColor()==Color.CYAN){
+            score+=100;
+        }
+    }
+    /*
+     * Displays a red flashing screen and a Gif if the player loses or a blue flashing screen and a different Gif if the player wins.
+     */
+    private void finalAnimations(GLabel outcome){
+        int i=0;
+        GRect flasher = new GRect(getWidth(), getHeight());
+        flasher.setFilled(true);
+        add(flasher);
+        flasher.sendToBack();
+        if(turns==0) loserSound.play();
+        if(NUM_BRICKS==0)winnerSong.play();
+        while (i<10){
+            if (turns==0){
+                GImage loserGif = new GImage("gloriagif.gif");
+                loserGif.scale(.75, .75);
+                add(loserGif,(WIDTH-loserGif.getWidth())/2, outcome.getY()+outcome.getHeight());
+                flasher.setColor(Color.RED);
+            } else{
+                GImage winnerGif = new GImage("winner.gif");
+                winnerGif.scale(.75, .75);
+                add(winnerGif,(WIDTH-winnerGif.getWidth())/2, outcome.getY()+outcome.getHeight());
+                flasher.setColor(Color.BLUE);
+            }
+            pause(100);
+             
+            flasher.setColor(Color.WHITE);
+            pause(100);
+            i++;
+        }
+        remove(flasher);
+ 
+    }
+    /*
+     * Allows the player to play again by clicking the mouse.
+     */
+    private void playAgain(){
+        GLabel retry = new GLabel("Want to play again? Click the mouse.");
+        add(retry, (WIDTH-retry.getWidth())/2, HEIGHT/2-retry.getHeight()-50);
+        waitForClick();
+        score = STARTING_SCORE;
+        kicker=0;
+        shiftingDelay= DELAY;
+        turns = NTURNS;
+        NUM_BRICKS = NBRICKS_PER_ROW*NBRICK_ROWS;
+        removeAll();
+        run();
+    }   
+}
